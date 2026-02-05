@@ -1,0 +1,577 @@
+openapi: 3.0.3
+info:
+  title: Marshal Engine API
+  description: API for JSON validation and repair services
+  version: 1.0.0
+  contact:
+    name: LadderGrid
+    url: https://github.com/laddergrid/marshal-engine
+
+servers:
+  - url: https://api.laddergrid.com
+    description: Production server
+
+tags:
+  - name: health
+    description: Health check endpoints
+  - name: authentication
+    description: User authentication and authorization
+  - name: api-keys
+    description: API key management
+  - name: validator
+    description: JSON validation against OpenAPI specifications
+  - name: repair
+    description: JSON repair and fixing services
+
+paths:
+  /ping:
+    get:
+      tags:
+        - health
+      summary: Health check endpoint
+      description: Returns a pong response to verify the service is running
+      operationId: ping
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: pong
+                required:
+                  - message
+
+  /auth/google/login:
+    get:
+      tags:
+        - authentication
+      summary: Initiate Google OAuth login
+      description: Returns a Google OAuth authorization URL for user authentication
+      operationId: googleLogin
+      responses:
+        '200':
+          description: Successfully generated login URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  auth_url:
+                    type: string
+                    description: Google OAuth authorization URL
+                    example: "https://accounts.google.com/o/oauth2/v2/auth?..."
+                required:
+                  - auth_url
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/google/callback:
+    get:
+      tags:
+        - authentication
+      summary: Google OAuth callback
+      description: Handles the OAuth callback from Google and returns JWT tokens
+      operationId: googleCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Authorization code from Google
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: State parameter for CSRF protection
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad request - missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - authentication
+      summary: Refresh access token
+      description: Get a new access token using a valid refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: Valid refresh token
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Successfully refreshed token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad request - invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - authentication
+      summary: Logout user
+      description: Invalidate the user's session
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "logged out successfully"
+        '401':
+          description: Unauthorized - invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api-keys:
+    post:
+      tags:
+        - api-keys
+      summary: Create a new API key
+      description: Generate a new API key for the authenticated user
+      operationId: createApiKey
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '201':
+          description: API key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateApiKeyResponse'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - api-keys
+      summary: List all API keys
+      description: Retrieve all API keys for the authenticated user
+      operationId: listApiKeys
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved API keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListApiKeysResponse'
+        '401':
+          description: Unauthorized - invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api-keys/{id}:
+    delete:
+      tags:
+        - api-keys
+      summary: Revoke an API key
+      description: Delete/revoke an API key by ID
+      operationId: revokeApiKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: API key ID (MongoDB ObjectID as hex string)
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: API key revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "API key revoked successfully"
+        '400':
+          description: Bad request - invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/validate:
+    post:
+      tags:
+        - validator
+      summary: Validate JSON against OpenAPI specification
+      description: Validates a JSON string against a provided OpenAPI specification schema
+      operationId: validateJSON
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRequest'
+      responses:
+        '200':
+          description: Validation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /repair/fix-json:
+    post:
+      tags:
+        - repair
+      summary: Fix malformed JSON
+      description: Attempts to repair and fix malformed or invalid JSON strings
+      operationId: fixJSON
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FixJSONRequest'
+      responses:
+        '200':
+          description: JSON fixed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FixJSONResponse'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from Google OAuth login
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: API key in Bearer token format (e.g., "Bearer lg-m-550e8400-e29b-41d4-a716-446655440000")
+
+  schemas:
+    ValidateRequest:
+      type: object
+      required:
+        - open_api_spec
+        - json_string
+        - operation_id
+      properties:
+        open_api_spec:
+          type: string
+          description: The OpenAPI specification to validate against
+          example: |
+            {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "number"}
+              },
+              "required": ["name"]
+            }
+        json_string:
+          type: string
+          description: The JSON string to validate
+          example: '{"name": "John Doe", "age": 30}'
+        operation_id:
+          type: string
+          description: The operationId from the OpenAPI spec to identify which endpoint schema to validate against
+          example: 'createUser'
+
+    ValidateResponse:
+      type: object
+      required:
+        - is_valid
+        - errors
+      properties:
+        is_valid:
+          type: boolean
+          description: Indicates whether the JSON is valid against the OpenAPI spec
+          example: true
+        errors:
+          type: array
+          description: List of validation errors (empty if valid)
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    ValidationError:
+      type: object
+      required:
+        - field
+        - error
+      properties:
+        field:
+          type: string
+          description: The field in the OpenAPI schema that failed validation
+          example: age
+        error:
+          type: string
+          description: Description of the validation error
+          example: "Expected type number, got string"
+
+    FixJSONRequest:
+      type: object
+      required:
+        - json_to_fix
+      properties:
+        json_to_fix:
+          type: string
+          description: The malformed JSON string to fix
+          example: '{"name": "John", age: 30, "city": "New York"'
+
+    FixJSONResponse:
+      type: object
+      required:
+        - fixed_json
+      properties:
+        fixed_json:
+          type: string
+          description: The repaired JSON string
+          example: '{"name": "John", "age": 30, "city": "New York"}'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: "something broke at our end"
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+      properties:
+        access_token:
+          type: string
+          description: JWT access token for API authentication
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjBkNWVjNDk..."
+        refresh_token:
+          type: string
+          description: JWT refresh token for obtaining new access tokens
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjBkNWVjNDk..."
+
+    CreateApiKeyRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: A descriptive name for the API key
+          example: "Production API Key"
+          minLength: 1
+        expires_at_in_ms:
+          type: integer
+          format: int64
+          description: Expiration timestamp in milliseconds (0 or omitted means never expires)
+          example: 1735689600000
+
+    CreateApiKeyResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - key
+            - expires_in_ms
+          properties:
+            key:
+              type: string
+              description: The generated API key (only shown once, store it securely)
+              example: "lg-m-550e8400-e29b-41d4-a716-446655440000"
+            expires_in_ms:
+              type: integer
+              format: int64
+              description: Expiration timestamp in milliseconds (0 means never expires)
+              example: 1735689600000
+
+    ListApiKeysResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          description: List of API keys belonging to the user
+          items:
+            $ref: '#/components/schemas/ApiKey'
+
+    ApiKey:
+      type: object
+      required:
+        - id
+        - name
+        - expires_in_ms
+      properties:
+        id:
+          type: string
+          description: API key ID (MongoDB ObjectID as hex string)
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          description: Descriptive name for the API key
+          example: "Production API Key"
+        expires_in_ms:
+          type: integer
+          format: int64
+          description: Expiration timestamp in milliseconds (0 means never expires)
+          example: 1735689600000

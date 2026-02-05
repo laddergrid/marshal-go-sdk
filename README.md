@@ -1,6 +1,6 @@
 # Marshal Go SDK
 
-Official Go SDK for the [Marshal Engine API](https://api.laddergrid.com) - JSON validation and repair services.
+Official Go SDK for the [Marshal Engine API](https://laddergrid.com) - JSON validation and repair services.
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/laddergrid/marshal-go-sdk.svg)](https://pkg.go.dev/github.com/laddergrid/marshal-go-sdk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/laddergrid/marshal-go-sdk)](https://goreportcard.com/report/github.com/laddergrid/marshal-go-sdk)
@@ -25,6 +25,8 @@ go get github.com/laddergrid/marshal-go-sdk
 ### Prerequisites
 
 You need an API key to use the Marshal Engine API. Your API key should be in the format `lg-m-...`
+
+Generate API Key at https://laddergrid.com
 
 ### Health Check
 

@@ -2,6 +2,8 @@
 
 Official Go SDK for the [Marshal Engine API](https://laddergrid.com) - JSON validation and repair services.
 
+Go pkg: https://pkg.go.dev/github.com/laddergrid/marshal-go-sdk
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/laddergrid/marshal-go-sdk.svg)](https://pkg.go.dev/github.com/laddergrid/marshal-go-sdk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/laddergrid/marshal-go-sdk)](https://goreportcard.com/report/github.com/laddergrid/marshal-go-sdk)
 

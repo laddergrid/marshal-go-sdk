@@ -418,7 +418,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## Support
 
-- GitHub: [https://github.com/laddergrid/marshal-engine](https://github.com/laddergrid/marshal-engine)
+- GitHub: [https://github.com/laddergrid/marshal-go-sdk](https://github.com/laddergrid/marshal-go-sdk)
 - Issues: [Report bugs and feature requests](https://github.com/laddergrid/marshal-go-sdk/issues)
 
 ## Changelog
